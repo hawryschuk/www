@@ -1,0 +1,121 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master ] 
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout @hawryschuk-common
+        uses: actions/checkout@v4
+        with:
+          repository: hawryschuk/common
+          path: "@hawryschuk-common"
+      - name: Install @hawryschuk-common
+        run: npm ci
+        working-directory: "@hawryschuk-common"
+
+      - name: Checkout @hawryschuk/crypto
+        uses: actions/checkout@v4
+        with:
+          repository: hawryschuk/crypto
+          token: ${{ secrets.PRIVATE_PAT }}
+          path: "@hawryschuk-crypto"
+      - name: Install @hawryschuk/crypto
+        run: npm ci
+        working-directory: "@hawryschuk-crypto"
+      
+      - name: Checkout @hawryschuk/terminals
+        uses: actions/checkout@v4
+        with:
+          repository: hawryschuk/terminals
+          token: ${{ secrets.PRIVATE_PAT }}
+          path: "@hawryschuk-terminal-restapi"
+      - name: Install @hawryschuk/terminals
+        run: npm ci
+        working-directory: "@hawryschuk-terminal-restapi"
+      # - name: Install @hawryschuk/terminals/frontend
+      #   run: npm ci
+      #   working-directory: "@hawryschuk-terminal-restapi/frontend"
+
+      - name: Checkout @hawryschuk/locking
+        uses: actions/checkout@v4
+        with:
+          repository: hawryschuk/locking
+          token: ${{ secrets.PRIVATE_PAT }}
+          path: "@hawryschuk-locking"
+      - name: Install @hawryschuk/locking
+        run: npm ci
+        working-directory: "@hawryschuk-locking"
+
+      - name: Checkout @hawryschuk/business-management
+        uses: actions/checkout@v4
+        with:
+          repository: hawryschuk/business-management
+          token: ${{ secrets.PRIVATE_PAT }}
+          path: "hawryschuk.com"
+      - name: Install @hawryschuk/business-management
+        working-directory: "hawryschuk.com"
+        run: |
+          cd business
+          npm install --omit=optional
+          cd ../frontend2
+            ln -s ../../hawryschuk.com/frontend2/node_modules ../../@hawryschuk-terminal-restapi/frontend/node_modules
+          npm install --omit=optional     # avoids package-lock.json which refers to macOs-fsevents
+          npm install canvg               # required by jspdf
+          npm run build
+
+  #     - name: Install dependencies
+  #       run: |
+  #         # sudo apt-get update
+  #         sudo apt-get install -y pandoc plantuml
+  #         pip install pandoc-plantuml-filter
+
+  #     - name: Build HTML from Markdown
+  #       run: |
+  #         pandoc README.md --standalone --to html5 --filter pandoc-plantuml -o index.html
+  #         rm -rf dist && mkdir dist && cp -r CNAME *.html plantuml-images/ dist
+
+      - name: Include walker.json
+        working-directory: hawryschuk.com/frontend2/dist/frontend2/browser
+        run: |
+          FILE_ID=13qKjZShU42kxUVQ2MRcrNEECiEodfc5U
+          curl -L "https://drive.google.com/uc?export=download&id=${FILE_ID}" -o intermediate.html
+          UUID=$(sed -n 's/.*name="uuid" value="\([^"]*\)".*/\1/p' intermediate.html)
+          curl -o walker.json "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=t&uuid=${UUID}"
+
+      - name: Debug www build
+        working-directory: hawryschuk.com/frontend2/dist/frontend2/browser
+        run: |
+          ls -lia
+
+      - name: Upload www
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: hawryschuk.com/frontend2/dist/frontend2/browser
+         
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
