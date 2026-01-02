@@ -93,14 +93,21 @@ jobs:
   #         pandoc README.md --standalone --to html5 --filter pandoc-plantuml -o index.html
   #         rm -rf dist && mkdir dist && cp -r CNAME *.html plantuml-images/ dist
 
-      - name: Include walker.json
+      - name: Include walker.json and company-management.pdf
         working-directory: hawryschuk.com/frontend2/dist/frontend2/browser
         run: |
-          FILE_ID=13qKjZShU42kxUVQ2MRcrNEECiEodfc5U
-          curl -L "https://drive.google.com/uc?export=download&id=${FILE_ID}" -o intermediate.html
-          UUID=$(sed -n 's/.*name="uuid" value="\([^"]*\)".*/\1/p' intermediate.html)
-          curl -o walker.json "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=t&uuid=${UUID}"
-
+          download_from_gdrive() {
+            local FILE_ID="$1"
+            local OUTPUT_FILE="$2"
+            local INTERMEDIATE_FILE="$(mktemp)"
+            curl -s -L "https://drive.google.com/uc?export=download&id=${FILE_ID}" -o "${INTERMEDIATE_FILE}"
+            local UUID
+            UUID=$(sed -n 's/.*name="uuid" value="\([^"]*\)".*/\1/p' "${INTERMEDIATE_FILE}")
+            curl -L -o "${OUTPUT_FILE}" "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=t&uuid=${UUID}"
+            rm -f "${INTERMEDIATE_FILE}"
+          }
+          download_from_gdrive 13qKjZShU42kxUVQ2MRcrNEECiEodfc5U walker.json
+          download_from_gdrive 1DqU2fujMCwyciuBO3dpsLhS6p2OUtuUv company-management.pdf
       - name: Debug www build
         working-directory: hawryschuk.com/frontend2/dist/frontend2/browser
         run: |
