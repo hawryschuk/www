@@ -2,7 +2,7 @@ name: Build and Test
 
 on:
   push:
-    branches: [ master ] 
+    branches: [ master, staging ] 
   workflow_dispatch:
 
 permissions:
@@ -71,6 +71,12 @@ jobs:
           repository: hawryschuk/business-management
           token: ${{ secrets.PRIVATE_PAT }}
           path: "hawryschuk.com"
+
+      # Conditionally sanitize business/AppModule* to be void of actions():AppModuleAction[] for the main branch
+      - name: Sanitize Business Logic (Production Only)
+        if: github.ref_name == 'master'
+        run: node hawryschuk.com/frontend2/production-builder/sanitize-business.js
+
       - name: Install @hawryschuk/business-management
         working-directory: "hawryschuk.com"
         run: |
