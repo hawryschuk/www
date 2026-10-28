@@ -1,0 +1,45 @@
+name: Sync build-test.yml to Staging
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/build-test.yml'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Repo (www)
+        uses: actions/checkout@v4
+
+      - name: Checkout Dev Repo (www-dev)
+        uses: actions/checkout@v4
+        with:
+          repository: 'hawryschuk/www-dev'
+          token: ${{ secrets.WWW_DEV_REPO_TOKEN }}
+          path: www-dev
+          ref: staging
+
+      - name: Copy Workflow File
+        run: |
+          # Ensure target directory exists in staging
+          mkdir -p www-dev/.github/workflows/
+          cp .github/workflows/build-test.yml www-dev/.github/workflows/build-test.yml
+
+      - name: Commit and Push Changes
+        working-directory: www-dev
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add .github/workflows/build-test.yml
+          
+          # Check if there are actual changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to sync."
+          else
+            git commit -m "chore: auto-sync build-test.yml from www repo"
+            git push
+          fi
